@@ -1,275 +1,323 @@
 # Run sheet
 
-For the presenter. Attendee steps are in `README.md`.
+Setup is at the bottom. Do it 15 minutes before you go live.
+
+## PROMPT (paste the same one every time)
+
+```text
+How many P1 tickets did Acme file in the last 7 days, and what was the most common root cause? Use only the tickets MCP tool.
+```
+
+## ANSWER
+
+**137 · auth_timeout 61**
+
+Then oom_kill 23 · rate_limit 23 · cert_expiry 16 · bad_deploy 14
+
+## TABS
+
+| Tab | Name | Runs |
+|---|---|---|
+| A | `claude` | Claude Code, which you screen-share |
+| B | `server` | MCP server for curl, left running |
+| C | `curl` | `./call.sh` |
+
+Claude Code starts its own MCP server, so tab B is only for curl.
 
 ---
 
-## Before you start
+## AT A GLANCE
 
-- [ ] `docker compose down && docker compose up -d && ./seed.sh && ./build-view.sh`
-- [ ] Both images already in local Docker cache, nothing pulling
-- [ ] `cp mcp-naive.json .mcp.json`
-- [ ] Claude Code **fully exited**, so the read cursor starts at TKT-113056
-- [ ] Console open at localhost:8090, on the `support_tickets` topic
-- [ ] Second tab: `rpk connect mcp-server --address localhost:4195 ./repo`,
-      freshly started so its cursor is at the start and its tools match `repo/`
-- [ ] Third tab: `source ./mcp-init.sh`
-- [ ] `transcripts/long-run.md` open in an editor, ready to show
-- [ ] Terminal font large enough to read
+| # | Time | Where | Do |
+|---|---|---|---|
+| 1 | 0:00 | Console | Show 50,000 tickets, ask the question out loud |
+| 2 | 1:00 | Editor | `search-tickets.yaml` |
+| 3 | 2:00 | Tab A | Naive run, paste prompt |
+| 4 | 3:30 | Tab A | Paste prompt again |
+| 5 | 4:30 | Editor | `transcripts/long-run.md` |
+| 6 | 5:30 | Tab C | Three curl calls |
+| 7 | 6:30 | Editor | `/exit`, `aggregate.yaml`, `views.yaml` |
+| 8 | 8:00 | Tab A | Fixed run, paste prompt |
+| 9 | 9:00 | Talk | Description is the interface, agree with its caveat |
+| 10 | 10:00 | Talk | Numbers table, close |
 
-**Ground truth: 137, auth_timeout with 61.**
-
----
-
-## The shape
-
-| | |
-|---|---|
-| Hook | Ask a question with a checkable answer. It cannot answer. |
-| Tension | The tool works. The config is fine. It still cannot answer. |
-| Turn | The model diagnoses your tool design for you, out loud. |
-| Payoff | Move the work into the stream. One call, eight seconds, 137. |
-
-One line to build toward: **an MCP tool's job is not to give the model
-access, it's to give the model an answer.**
+Behind schedule? Go from 3 straight to 6.
 
 ---
 
-## Minute by minute
+## 1 · THE HAYSTACK · 0:00
 
-### 0:00 to 1:00 — the haystack
+**WHERE** Console → `support_tickets` → click one record
 
-Console on screen, `support_tickets` topic, 50,000 messages. Click into one
-record so they see the shape: customer, priority, root_cause, created_at,
-and a description body.
+**SAY**
+> "50,000 tickets. How many P1s did Acme file in the last seven days, and
+> what's the most common cause? There's one right answer, and I know it."
 
-Say what the question is and that the answer is checkable.
+❌ Don't say 137.
 
-> "There are 50,000 support tickets in this topic. I want to know how many
-> P1s Acme filed in the last week and what caused them. The answer is a
-> specific number. I know what it is. Let's see if the agent does."
+---
 
-Do not say 137 yet.
+## 2 · THE TOOL · 1:00
 
-### 1:00 to 2:00 — the tool
+**WHERE** Editor → `repo/resources/inputs/search-tickets.yaml`
 
-Show `repo/resources/inputs/search-tickets.yaml` on screen. Ten lines.
+**SAY**
+> "Ten lines. Nothing wrong with it. It's the tool I would have written."
 
-> "This is the tool. It reads tickets from the topic. There is nothing wrong
-> with it, and it is the tool I would have written."
+---
 
-### 2:00 to 3:30 — ask it
+## 3 · ASK IT · 2:00
 
-`claude`, then the question.
+**TAB A**
+```bash
+claude --strict-mcp-config --mcp-config mcp-naive.json
+```
 
-Let it run until it answers. In the saved runs it stopped by itself and
-refused to give a final number after 1m 8s (3 tool calls,
-`transcripts/repeat.md`) and 1m 22s (13 tool calls, `transcripts/partial.md`).
-If it asks whether to keep reading, say no.
+**PASTE** the prompt
 
-When it produces the partial answer, read the model's own words aloud. This
-is the turn and it needs no narration from you. From the 1m 8s run:
+**EXPECT** about 1 minute, a few tool calls, no final number, "at least N"
 
-> "The ticket tool has no filters for customer, priority or date. All it
-> takes is how many messages to read."
+**SAY** nothing. Read its words about the tool aloud.
 
-> "It looks like I'm sampling a very large or endless stream, not a fixed
-> set of tickets."
+**IF** it asks to keep reading → type `no`
 
-**Cut point.** If you are behind, skip straight from here to 5:30.
+**IF** it's still going at 2 min → `Esc`, "it has no way to finish", go to 5
 
-### 3:30 to 4:30 — ask it again
+---
 
-Same question, same session, verbatim.
+## 4 · ASK AGAIN · 3:30
 
-It will restate the same unreliable minimum and say running it again will
-not change anything. So the agent is now stuck: the tool works, and it
-cannot answer.
+**TAB A** same session
 
-> "Same question, same session, nothing changed. It cannot get any further."
+**PASTE** the prompt
 
-### 4:30 to 5:30 — what if we let it finish
+**EXPECT** the same minimum, and "re-running won't change it"
 
-Show `transcripts/long-run.md`.
+**SAY**
+> "Same question, nothing changed. It can't get any further."
 
-4m 2s, 42,675 of 50,000 records read, running count: **116**. It still
-called that partial, and a read was still running in the background.
+---
 
-> "The truth is 137. After four minutes it had read 85% of the topic and had
-> 116. Close enough to be believable, and still wrong. And it knew that, so
-> it wouldn't commit."
+## 5 · LET IT FINISH? · 4:30
 
-### 5:30 to 6:30 — the three failures
+**WHERE** Editor → `transcripts/long-run.md`
 
-Switch to the curl tab. These are deterministic and need no model.
+**POINT AT** `4m 2s` · `42,675` read · `116`
+
+**SAY**
+> "The truth is 137. After four minutes and 85% of the topic it had 116.
+> Believable, and wrong. It knew that, so it wouldn't commit."
+
+---
+
+## 6 · THREE FAILURES · 5:30
+
+**TAB C** · Volume
 
 ```bash
 ./call.sh search-tickets '{"count":1000}' | wc -c
 ```
 
-**Volume.** About 627,000 bytes (it varies by a few hundred per call) for an
-answer that is two facts. That is about 2% of the topic. The whole topic is
-28.5 MB.
+**EXPECT** about 627,000
 
-**Coverage.** The topic is shuffled, so 1,000 records is not 1,000 Acme
-tickets. To find all 137 it must read all 50,000.
+**SAY**
+> "627 KB for two facts, and that's 2% of the topic."
 
-> "The tool offers the model a dial. There is no setting of that dial that
-> is correct."
+**SAY** · Coverage
+> "It's shuffled. Finding all 137 means reading all 50,000. No setting of
+> that dial is correct."
 
-**Hidden state.** Run this twice, point at the first ticket ID:
+**TAB C** · Hidden state (run it TWICE)
 
 ```bash
 ./call.sh search-tickets '{"count":5}' | head -c 200
 ```
 
-Different records, identical call, no error anywhere. The tool holds an open
-consumer and every call advances it. Nothing in the schema says so.
+**POINT AT** the first ticket ID, which differs between the two runs
 
-### 6:30 to 8:00 — the fix
+**SAY**
+> "Same call, different records, no error. Every call moves a hidden
+> cursor."
 
-```bash
-cp mcp-fixed.json .mcp.json
-```
+---
 
-Show `aggregate.yaml`. Filter, batch, reduce to one object, write to a cache.
+## 7 · THE FIX · 6:30
 
+**TAB A** `/exit`
+
+**WHERE** Editor → `aggregate.yaml`
+
+**SAY**
+> "Filter, reduce to one object, write it to a cache. The stream does the
+> work."
+
+**TAB C**
 ```bash
 ls -l ./cache
 ```
 
-The filename **is** the key. `acme:p1:7d`, 263 bytes.
+**POINT AT** `acme:p1:7d` · 263 bytes
 
-Show `repo/resources/caches/views.yaml`. Eight lines.
+**SAY**
+> "The filename is the key."
 
-> "The stream does the work. The tool returns an answer."
+**WHERE** Editor → `repo/resources/caches/views.yaml`
 
-### 8:00 to 9:00 — ask the same question
+**SAY**
+> "Eight lines. The tool returns an answer."
 
-`claude`, `/mcp` to show the tool swapped, then the identical question.
+---
 
-One call. Eight seconds. 137, auth_timeout at 61.
+## 8 · ASK AGAIN, FIXED · 8:00
 
-Nothing about the model changed. Nothing about the prompt changed.
+**TAB A**
+```bash
+claude --strict-mcp-config --mcp-config mcp-fixed.json
+```
 
-### 9:00 to 10:00 — two things to draw out
+**DO** `/mcp` → show `get-views` → `Esc`
 
-**It found the key from the description.** The prompt never mentions
-`acme:p1:7d`. The only place that key appears is the example at the end of
-the description prose in `views.yaml`.
+**PASTE** the prompt
 
-> "The description is the interface. It's prose, it ships in your config,
-> and nobody reviews it."
+**EXPECT** 1 call · about 8s · **137 · auth_timeout 61**
 
-**It flagged the tradeoff before you could.** Read its caveat aloud:
+**SAY**
+> "Same model. Same prompt. One call, eight seconds, right answer."
 
-> "The numbers come from a pre-computed summary (acme:p1:7d) in the tickets
-> tool, not from counting the tickets directly. The summary doesn't say when
-> it was last updated, so it may be slightly behind."
+**IF** it can't find the view → `./build-view.sh` in tab C, then ask again
 
-Then agree with it. A materialized view means deciding the question in
-advance. It answers one shape of question well and everything else not at
-all. That is a real constraint. Do not pretend otherwise.
+---
 
-Bonus if there is time: the view carries no timestamp, and the fix is one
-line. The model wrote your backlog item.
+## 9 · TWO POINTS · 9:00
 
-### 10:00 to 11:00 — generalize
+**Key from the description.** The prompt never says `acme:p1:7d`. The key
+only appears in the `views.yaml` description.
+> "The description is the interface. It's prose, and nobody reviews it."
+
+**Its caveat.** Read it aloud: it's a pre-computed summary with no
+timestamp, so it may be behind.
+> "It's right. A view means deciding the question in advance."
+
+Extra, if there's time: adding a timestamp is a one-line fix. "The model
+wrote your backlog item."
+
+---
+
+## 10 · CLOSE · 10:00
 
 | | naive | fixed |
 |---|---|---|
 | tool calls | 3 | 1 |
 | time | 68s | 8s |
-| bytes, one call | ~627,000 | 383 |
+| bytes | ~627,000 | 383 |
 | answer | "at least 36" | 137 |
 | repeatable | no | yes |
 
-The naive column is the 1m 8s run in `transcripts/repeat.md`.
-
-About 1,600x smaller than one partial call. The stored view is 263 bytes,
-about 108,000x smaller than the 28.5 MB of data needed to actually be
-correct.
-
-Close on the reframe: stop asking "how do I give my agent access to X,"
-start asking "what shape should this answer be."
+**SAY**
+> "Don't ask how to give your agent access to X. Ask what shape the answer
+> should be."
 
 ---
 
-## Fallbacks
+## ❌ DON'T
 
-**No network, or the model is down.** The whole before and after is provable
-with curl. `mcp-init.sh` and `call.sh` need no LLM. The model is the
-flavour; the byte count is the evidence. Run 5:30 to 6:30 as the spine and
-show transcripts for the rest.
-
-**The naive run answers correctly.** Should not happen, but if it does, go
-straight to the repeat-question test at 3:30. The cursor drift is
-deterministic.
-
-**Cursor already advanced from rehearsal.** The first call will not start at
-TKT-113056. Restart Claude Code, and restart the `rpk connect mcp-server` in
-the second tab, since it keeps its own cursor. If that fails, full reset.
-
-**Claude Code hangs or a background task is stuck.** `/exit` and restart.
-Check no stray `rpk connect` processes are holding a consumer.
-
-**Everything is broken.** Transcripts in `transcripts/`: `partial.md`,
-`repeat.md`, `long-run.md`, `fixed.md`. Four saved runs covering the whole
-arc.
+- Change the prompt. Top three causes means a tie at 23.
+- Let the naive run keep reading.
+- Say 137 before step 8.
+- Defend the view. Agree with the caveat.
 
 ---
 
-## Traps
+## IF IT BREAKS
 
-- **Do not ask for the top three causes.** Second place is a tie at 23.
-- **Do not let the naive run keep reading.** If it offers to continue, say
-  no. The saved long run was still reading after four minutes.
-- **Do not say 137 before the naive run.** It kills the tension.
-- **Do not defend the materialized view.** Agree with the model's caveat.
-
----
-
-## Deliberately left out
-
-No Bloblang tutorial. No Kafka explanation. No inputs-versus-processors
-tour. No auth, no deployment, no comparison against hand-written MCP
-servers. One question, two tools, one file each.
+| Symptom | Fix |
+|---|---|
+| Naive run gets 137 | "It read the repo, which is its own lesson." Go to 4. |
+| Naive run hangs | `Esc` → go to 5 |
+| `call.sh` prints nothing | Tab B is down. Restart it, then `source ./mcp-init.sh` in tab C. |
+| Curl cursor already moved | `Ctrl-C` tab B, restart it, re-source tab C |
+| `/mcp` shows Gmail or Drive | You forgot `--strict-mcp-config`. `/exit` and relaunch. |
+| Fixed run can't find the view | `./build-view.sh`, then ask again |
+| Model is down | Run step 6 live, and show `transcripts/` for the rest |
+| Everything is broken | Full reset below (30s), restart tab B, re-source tab C |
 
 ---
 
-## Build notes, for the "how I built it" section
+## BEFORE YOU GO LIVE (T-15 min)
 
-**The setup broke three times on my own machine.**
+**1. Reset** in tab C, then expect `"ticket_count":137`
 
-- `rpk container start` failed on its last step because it pulls
-  `console:latest` against a v24.3.6 broker. Cluster fine, UI dead.
-- Having failed, it never created an rpk profile, so `rpk cluster info` kept
-  trying to reach Redpanda Cloud.
-- `rpk container purge` then failed with "couldn't parse node ID."
+```bash
+docker compose down && docker compose up -d && ./seed.sh && ./build-view.sh
+```
 
-Three failures in a documented one-command setup, on a machine that already
-had Docker and rpk. That is the gap between a quickstart and five laptops in
-a room, and it is why the attendee path is a pinned `docker-compose.yml`.
+**2. Check the view**, then expect `acme:p1:7d` at 263 bytes
 
-**I designed for the wrong failure.** I expected the model to answer wrongly.
-It refused instead, tracked its own coverage, and explained what my tool was
-missing. The refusal is more persuasive than a hallucination would have
-been, because nobody can dismiss it as a bad model or a bad prompt.
+```bash
+ls -l ./cache
+```
 
-**Lint caught a real bug before the demo did.** The `redpanda` input rejects
-a config with neither a consumer group nor explicit partitions. Pinning to
-`support_tickets:0` avoids committing offsets, which is what makes calls
-repeatable after restart.
+**3. Start the server** in tab B and leave it running
 
-**Two dead ends in the aggregation.** The first attempt used Bloblang `fold`
-and died on null handling. The second relied on whatever batch the fetcher
-delivered, producing arrays of one and two records. The fix was an explicit
-memory buffer with a 20 second batch policy.
+```bash
+rpk connect mcp-server --address localhost:4195 ./repo
+```
 
-**Details that only show up if you actually run it.** A cache becomes two
-tools, so the agent can write to your view. Cache descriptions get wrapped
-into "Obtain an item from X," so they have to be noun phrases. Declaring
-`properties` removes the default `value` parameter entirely. Tool results
-arrive as stringified JSON inside text blocks, so every byte is text
-something has to parse. `count` is a floor, not a contract: ask for 500, get
-504; ask for 3,000, get 3,024.
+**4. Open a curl session** in tab C, then expect `session: <id>`
+
+```bash
+source ./mcp-init.sh
+```
+
+**5. Rehearse the launch** in tab A. `/mcp` should show only `tickets`.
+Then `/exit`.
+
+```bash
+claude --strict-mcp-config --mcp-config mcp-naive.json
+```
+
+**6. Quit every Claude Code session** in this repo, so step 3 starts at the
+beginning of the topic.
+
+**7. Get the screen ready**
+
+- [ ] Share only the terminal and editor windows, never this sheet
+- [ ] Notifications off
+- [ ] Terminal font large
+- [ ] Console open at http://localhost:8090 on `support_tickets`
+- [ ] Editor tabs: `search-tickets.yaml`, `long-run.md`, `aggregate.yaml`,
+      `views.yaml`
+- [ ] Prompt in clipboard
+
+---
+
+## Q&A: how I built it
+
+**Setup broke three times on my machine.** `rpk container start` pulled
+`console:latest` against a v24.3.6 broker, so the UI was dead. It never made
+an rpk profile, so `rpk cluster info` kept trying to reach Redpanda Cloud.
+Then `rpk container purge` failed with "couldn't parse node ID." That's why
+attendees get a pinned `docker-compose.yml`.
+
+**I designed for the wrong failure.** I expected a wrong answer. Instead it
+refused, tracked how much it had read, and explained what the tool was
+missing. That's more persuasive, because nobody can blame a bad model or a
+bad prompt.
+
+**Lint caught a real bug.** The `redpanda` input needs a consumer group or
+explicit partitions. Pinning `support_tickets:0` means no offsets get
+committed, so calls repeat after a restart.
+
+**Two dead ends in the aggregation.** Bloblang `fold` failed on nulls. Then
+the fetcher's own batches produced arrays of one or two records. The fix was
+a memory buffer with a 20-second batch policy.
+
+**Details you only find by running it.**
+
+- A cache becomes two tools, so the agent can write to your view.
+- Cache descriptions get wrapped into "Obtain an item from X," so write them
+  as noun phrases.
+- Declaring `properties` removes the default `value` parameter.
+- Tool results are stringified JSON inside text blocks.
+- `count` is a minimum: ask for 500 and you get 504; ask for 3,000 and you
+  get 3,024.
