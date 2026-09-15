@@ -1,6 +1,64 @@
 # Run sheet
 
-Setup is at the bottom. Do it 15 minutes before you go live.
+## TABS
+
+| Tab | Name | Runs |
+|---|---|---|
+| A | `claude` | Claude Code, which you screen-share |
+| B | `server` | MCP server for curl, left running |
+| C | `curl` | `./call.sh` |
+
+Claude Code starts its own MCP server, so tab B is only for curl.
+
+---
+
+## BEFORE YOU GO LIVE (T-15 min)
+
+**1. Reset** in tab C, then expect `"ticket_count":137`
+
+```bash
+docker compose down && docker compose up -d && ./seed.sh && ./build-view.sh
+```
+
+**2. Check the view**, then expect `acme:p1:7d` at 263 bytes
+
+```bash
+ls -l ./cache
+```
+
+**3. Start the server** in tab B and leave it running
+
+```bash
+rpk connect mcp-server --address localhost:4195 ./repo
+```
+
+**4. Open a curl session** in tab C, then expect `session: <id>`
+
+```bash
+source ./mcp-init.sh
+```
+
+**5. Rehearse the launch** in tab A. `/mcp` should show only `tickets`.
+Then `/exit`.
+
+```bash
+claude --strict-mcp-config --mcp-config mcp-naive.json
+```
+
+**6. Quit every Claude Code session** in this repo, so show step 3 starts at
+the beginning of the topic.
+
+**7. Get the screen ready**
+
+- [ ] Share only the terminal and editor windows, never this sheet
+- [ ] Notifications off
+- [ ] Terminal font large
+- [ ] Console open at http://localhost:8090 on `support_tickets`
+- [ ] Editor tabs: `search-tickets.yaml`, `long-run.md`, `aggregate.yaml`,
+      `views.yaml`
+- [ ] Prompt in clipboard
+
+---
 
 ## PROMPT (paste the same one every time)
 
@@ -13,16 +71,6 @@ How many P1 tickets did Acme file in the last 7 days, and what was the most comm
 **137 · auth_timeout 61**
 
 Then oom_kill 23 · rate_limit 23 · cert_expiry 16 · bad_deploy 14
-
-## TABS
-
-| Tab | Name | Runs |
-|---|---|---|
-| A | `claude` | Claude Code, which you screen-share |
-| B | `server` | MCP server for curl, left running |
-| C | `curl` | `./call.sh` |
-
-Claude Code starts its own MCP server, so tab B is only for curl.
 
 ---
 
@@ -239,55 +287,7 @@ wrote your backlog item."
 | `/mcp` shows Gmail or Drive | You forgot `--strict-mcp-config`. `/exit` and relaunch. |
 | Fixed run can't find the view | `./build-view.sh`, then ask again |
 | Model is down | Run step 6 live, and show `transcripts/` for the rest |
-| Everything is broken | Full reset below (30s), restart tab B, re-source tab C |
-
----
-
-## BEFORE YOU GO LIVE (T-15 min)
-
-**1. Reset** in tab C, then expect `"ticket_count":137`
-
-```bash
-docker compose down && docker compose up -d && ./seed.sh && ./build-view.sh
-```
-
-**2. Check the view**, then expect `acme:p1:7d` at 263 bytes
-
-```bash
-ls -l ./cache
-```
-
-**3. Start the server** in tab B and leave it running
-
-```bash
-rpk connect mcp-server --address localhost:4195 ./repo
-```
-
-**4. Open a curl session** in tab C, then expect `session: <id>`
-
-```bash
-source ./mcp-init.sh
-```
-
-**5. Rehearse the launch** in tab A. `/mcp` should show only `tickets`.
-Then `/exit`.
-
-```bash
-claude --strict-mcp-config --mcp-config mcp-naive.json
-```
-
-**6. Quit every Claude Code session** in this repo, so step 3 starts at the
-beginning of the topic.
-
-**7. Get the screen ready**
-
-- [ ] Share only the terminal and editor windows, never this sheet
-- [ ] Notifications off
-- [ ] Terminal font large
-- [ ] Console open at http://localhost:8090 on `support_tickets`
-- [ ] Editor tabs: `search-tickets.yaml`, `long-run.md`, `aggregate.yaml`,
-      `views.yaml`
-- [ ] Prompt in clipboard
+| Everything is broken | Rerun setup steps 1, 3 and 4 (about 30s) |
 
 ---
 
