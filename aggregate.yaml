@@ -1,0 +1,50 @@
+input:
+  redpanda:
+    seed_brokers: [ "127.0.0.1:9092" ]
+    topics: [ "support_tickets:0" ]
+    start_offset: earliest
+
+buffer:
+  memory:
+    batch_policy:
+      enabled: true
+      count: 0
+      period: 20s
+
+pipeline:
+  processors:
+    - mapping: |
+        root = if this.customer == "Acme" &&
+                  this.priority == "P1" &&
+                  this.created_at > "2026-09-08T00:00:00Z" {
+          this
+        } else {
+          deleted()
+        }
+
+    - archive:
+        format: json_array
+
+    - mapping: |
+        let causes = this.map_each(t -> t.root_cause)
+        root.customer = "Acme"
+        root.priority = "P1"
+        root.window = "last_7_days"
+        root.ticket_count = this.length()
+        root.top_causes = $causes.unique().map_each(c -> {
+          "cause": c,
+          "count": $causes.filter(v -> v == c).length()
+        }).sort_by(p -> -p.count)
+
+output:
+  cache:
+    target: views
+    key: 'acme:p1:7d'
+
+cache_resources:
+  - label: views
+    file:
+      directory: ./cache
+
+logger:
+  level: WARN

@@ -1,0 +1,10 @@
+label: search-tickets
+redpanda:
+  seed_brokers: [ "127.0.0.1:9092" ]
+  topics: [ "support_tickets:0" ]
+  start_offset: earliest
+meta:
+  tags: [ naive ]
+  mcp:
+    enabled: true
+    description: Read support tickets from the support_tickets topic. Each ticket has customer, priority, root_cause, created_at, subject and description fields.

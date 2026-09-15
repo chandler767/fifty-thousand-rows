@@ -1,0 +1,8 @@
+label: views
+file:
+  directory: ./cache
+meta:
+  tags: [ fixed ]
+  mcp:
+    enabled: true
+    description: pre-computed ticket summaries, keyed as customer:priority:window in lowercase, for example acme:p1:7d

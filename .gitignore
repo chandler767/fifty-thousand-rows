@@ -1,0 +1,5 @@
+.DS_Store
+tickets.jsonl
+cache/
+.mcp.json
+.claude/settings.local.json
